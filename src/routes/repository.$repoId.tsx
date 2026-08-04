@@ -28,6 +28,7 @@ import {
   repositories,
   suggestions,
 } from "@/lib/data";
+import type { Repo } from "@/lib/data";
 
 export const Route = createFileRoute("/repository/$repoId")({
   loader: ({ params }) => {
@@ -65,7 +66,7 @@ const difficultyTone: Record<string, string> = {
 };
 
 function RepositoryPage() {
-  const { repo } = Route.useLoaderData();
+  const { repo } = Route.useLoaderData() as { repo: Repo };
 
   return (
     <AppShell title={repo.name} subtitle={`${repo.owner}/${repo.name} · analyzed 12 minutes ago`}>
