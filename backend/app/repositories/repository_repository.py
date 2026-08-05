@@ -11,6 +11,13 @@ class RepositoryRepository:
     def get_by_id(self, repository_id: int) -> Repository | None:
         return self.session.get(Repository, repository_id)
 
+    def get_by_user_and_id(self, user_id: int, repository_id: int) -> Repository | None:
+        statement = select(Repository).where(
+            Repository.id == repository_id,
+            Repository.user_id == user_id,
+        )
+        return self.session.scalar(statement)
+
     def get_by_user_owner_name(self, user_id: int, owner: str, name: str) -> Repository | None:
         statement = select(Repository).where(
             Repository.user_id == user_id,

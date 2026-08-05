@@ -16,6 +16,15 @@ class GitHubService:
         self.current_user_id = current_user_id
         self.repositories = RepositoryRepository(session)
 
+    def get_repository(self, repository_id: int) -> Repository:
+        repository = self.repositories.get_by_user_and_id(self.current_user_id, repository_id)
+        if repository is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repository not found",
+            )
+        return repository
+
     def import_repository(self, github_url: str) -> Repository:
         parsed = self._validate_github_url(github_url)
         owner = parsed["owner"]
