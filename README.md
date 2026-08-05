@@ -1,126 +1,40 @@
 # RepoIQ Insight
 
-Build a modern, professional frontend for a web application called RepoIQ.
+RepoIQ is a React frontend for exploring GitHub repository health, AI summaries, and analysis insights.
 
-RepoIQ is an AI-powered GitHub Repository Analysis Platform.
+## Stack
 
-The application should feel like a professional SaaS dashboard similar to GitHub, Linear, Vercel, or Supabase.
-
-Use:
-
-- React
-
-- TypeScript
-
+- React and TypeScript
+- Vite
+- React Router DOM
+- React Query
+- Axios
 - Tailwind CSS
 
-- Vite
+## Getting started
 
-Generate ONLY the frontend.
+1. Copy `.env.example` to `.env` and set `VITE_API_URL` if needed.
+2. Install dependencies with `npm install`.
+3. Start the app with `npm run dev`.
 
-Do NOT generate any backend, authentication logic, databases, APIs, or mock servers.
+## Scripts
 
-Use reusable React components and clean folder organization.
+- `npm run dev` — start the Vite development server
+- `npm run build` — create a production build
+- `npm run lint` — lint TypeScript and React source files
 
-The application should include the following pages with realistic placeholder data:
+## Project structure
 
-1. Landing Page
-
-- Hero section
-
-- Features
-
-- Call to Action
-
-- Footer
-
-2. Login Page
-
-3. Register Page
-
-4. Dashboard
-
-Dashboard should contain:
-
-- Sidebar
-
-- Search bar
-
-- Repository cards
-
-- Health score cards
-
-- Recent analyses
-
-- Analytics section
-
-- Responsive layout
-
-5. Repository Details Page
-
-Include sections for:
-
-- Repository Overview
-
-- AI Summary
-
-- Health Score
-
-- Languages
-
-- README Preview
-
-- Interview Questions
-
-- Improvement Suggestions
-
-6. Chat Page
-
-A chat interface similar to ChatGPT.
-
-7. User Profile Page
-
-8. Settings Page
-
-Use placeholder content everywhere.
-
-Focus on UI quality and component organization.
-
-No backend.
-
-No API calls.
-
-No authentication implementation.
-
-No fake server.
-
-No Firebase.
-
-No Supabase.
-
-No database.
-
-No Express.
-
-Only frontend UI.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/cbde73e2-42aa-4c09-b953-dbe9c4d14e73).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+```text
+src/
+  components/  Reusable UI and feature components
+  layouts/     Shared application and authentication layouts
+  pages/       Route-level page components
+  routes/      React Router route definitions
+  services/    API client and external integrations
+  hooks/       Reusable React hooks
+  utils/       Shared utilities and placeholder data
+  types/       Shared TypeScript types
 ```
+
+The app currently uses placeholder data. `src/services/api.ts` provides the shared Axios client for future backend integration.

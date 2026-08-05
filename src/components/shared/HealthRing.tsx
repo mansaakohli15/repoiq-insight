@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 function tone(score: number) {
   if (score >= 80) return "var(--success)";

@@ -1,15 +1,14 @@
-import { Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { GitFork, Star, CircleDot, Lock, Globe } from "lucide-react";
 
 import { HealthRing } from "@/components/shared/HealthRing";
 import { Badge } from "@/components/ui/badge";
-import type { Repo } from "@/lib/data";
+import type { Repo } from "@/types/repository";
 
 export function RepoCard({ repo }: { repo: Repo }) {
   return (
     <Link
-      to="/repository/$repoId"
-      params={{ repoId: repo.id }}
+      to={`/repository/${repo.id}`}
       className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-elevated"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
