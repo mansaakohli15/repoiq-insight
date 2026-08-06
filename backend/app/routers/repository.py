@@ -10,6 +10,14 @@ from app.services.github_service import GitHubService
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 
 
+@router.get("", response_model=list[RepositoryRead])
+def list_repositories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Repository]:
+    return GitHubService(db, current_user.id).list_repositories()
+
+
 @router.post("/import", response_model=RepositoryRead, status_code=status.HTTP_201_CREATED)
 def import_repository(
     request: RepositoryImportRequest,

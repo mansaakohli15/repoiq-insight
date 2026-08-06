@@ -32,42 +32,27 @@ export type HealthScoreResponse = {
   breakdown: HealthScoreCheck[];
 };
 
+export async function listRepositories(): Promise<RepositoryImportResponse[]> {
+  const response = await api.get<RepositoryImportResponse[]>("/repositories");
+  return response.data;
+}
+
 export async function importRepository(githubUrl: string): Promise<RepositoryImportResponse> {
-  const token = localStorage.getItem("access_token");
-
-  const response = await api.post<RepositoryImportResponse>(
-    "/repositories/import",
-    {
-      github_url: githubUrl,
-    },
-    {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    },
-  );
-
+  const response = await api.post<RepositoryImportResponse>("/repositories/import", {
+    github_url: githubUrl,
+  });
   return response.data;
 }
 
 export async function getRepositoryDetails(repositoryId: number): Promise<RepositoryImportResponse> {
-  const token = localStorage.getItem("access_token");
-
-  const response = await api.get<RepositoryImportResponse>(`/repositories/${repositoryId}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-
+  const response = await api.get<RepositoryImportResponse>(`/repositories/${repositoryId}`);
   return response.data;
 }
 
 export async function generateHealthScore(repositoryId: number): Promise<HealthScoreResponse> {
-  const token = localStorage.getItem("access_token");
-
   const response = await api.post<HealthScoreResponse>(
     `/repositories/${repositoryId}/health-score`,
     {},
-    {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    },
   );
-
   return response.data;
 }

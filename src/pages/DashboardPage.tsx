@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, FolderGit2, GaugeCircle, Plus, ShieldAlert } from "lucide-react";
 import {
@@ -24,15 +24,16 @@ import { HealthRing } from "@/components/shared/HealthRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { importRepository } from "@/services/repositoryApi";
-import type { Repo } from "@/types/repository";
 import {
-  analyticsSeries,
-  healthBreakdown,
-  languageSplit,
-  recentAnalyses,
-  repositories,
-} from "@/utils/mockData";
+  importRepository,
+  listRepositories,
+  type RepositoryImportResponse,
+} from "@/services/repositoryApi";
+import type { Repo } from "@/types/repository";
+// NOTE: analyticsSeries, languageSplit, recentAnalyses, and healthBreakdown are still
+// placeholder data (Milestone 12 — Dashboard Analytics — not built yet). Only the
+// repository list below is wired to the real backend.
+import { analyticsSeries, healthBreakdown, languageSplit, recentAnalyses } from "@/utils/mockData";
 
 const pieColors = [
   "var(--chart-1)",
@@ -48,17 +49,44 @@ const statusTone: Record<string, string> = {
   Failed: "border-destructive/40 text-destructive",
 };
 
+function toRepo(imported: RepositoryImportResponse): Repo {
+  return {
+    id: String(imported.id),
+    name: imported.name,
+    owner: imported.owner,
+    description: imported.description ?? "",
+    language: imported.primary_language ?? "Unknown",
+    stars: imported.stars,
+    forks: imported.forks,
+    issues: 0,
+    health: imported.health_score ?? 0,
+    visibility: "Public",
+    updated: new Date(imported.imported_at).toLocaleDateString(),
+    topics: [],
+    languages: [],
+  };
+}
+
 export function DashboardPage() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [repositoryList, setRepositoryList] = useState<Repo[]>(repositories);
+  const [repositoryList, setRepositoryList] = useState<Repo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listRepositories()
+      .then((repos) => setRepositoryList(repos.map(toRepo)))
+      .catch(() => setLoadError("Could not load your repositories. Try refreshing the page."))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const refreshDashboard = (importedRepo: Repo) => {
     setRepositoryList((current) => [importedRepo, ...current]);
   };
 
   return (
-    <AppShell title="Dashboard" subtitle="Workspace overview for Northwind Labs">
+    <AppShell title="Dashboard" subtitle="Workspace overview">
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <Button className="gap-2" onClick={() => setIsImportOpen(true)}>
           <Plus className="h-4 w-4" /> Import Repository
@@ -77,8 +105,14 @@ export function DashboardPage() {
         </div>
       ) : null}
 
+      {loadError ? (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {loadError}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={FolderGit2} label="Repositories" value="24" delta="+3" />
+        <StatCard icon={FolderGit2} label="Repositories" value={String(repositoryList.length)} />
         <StatCard icon={Activity} label="Analyses this month" value="63" delta="+18%" />
         <StatCard icon={GaugeCircle} label="Median health" value="86" delta="+4" />
         <StatCard icon={ShieldAlert} label="Open risks" value="11" delta="+2" positive={false} />
@@ -91,11 +125,22 @@ export function DashboardPage() {
             View all
           </span>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {repositoryList.map((r) => (
-            <RepoCard key={r.id} repo={r} />
-          ))}
-        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading your repositories…</p>
+        ) : repositoryList.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No repositories imported yet. Click "Import Repository" to add your first one.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {repositoryList.map((r) => (
+              <RepoCard key={r.id} repo={r} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -250,7 +295,7 @@ export function DashboardPage() {
             <h3 className="text-sm font-medium">Health score by repository</h3>
             <div className="mt-6 h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={repositories.map((r) => ({ name: r.name, health: r.health }))}>
+                <BarChart data={repositoryList.map((r) => ({ name: r.name, health: r.health }))}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
                     dataKey="name"
@@ -287,21 +332,7 @@ export function DashboardPage() {
         onClose={() => setIsImportOpen(false)}
         onSubmit={async (githubUrl) => {
           const imported = await importRepository(githubUrl);
-          refreshDashboard({
-            id: String(imported.id),
-            name: imported.name,
-            owner: imported.owner,
-            description: imported.description ?? "",
-            language: imported.primary_language ?? "Unknown",
-            stars: imported.stars,
-            forks: imported.forks,
-            issues: 0,
-            health: imported.health_score ?? 0,
-            visibility: "Public",
-            updated: "just now",
-            topics: [],
-            languages: [],
-          });
+          refreshDashboard(toRepo(imported));
           setNotice(`Repository imported successfully: ${imported.owner}/${imported.name}.`);
           setIsImportOpen(false);
         }}

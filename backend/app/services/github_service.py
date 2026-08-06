@@ -17,6 +17,9 @@ class GitHubService:
         self.current_user_id = current_user_id
         self.repositories = RepositoryRepository(session)
 
+    def list_repositories(self) -> list[Repository]:
+        return self.repositories.list_by_user_id(self.current_user_id)
+
     def get_repository(self, repository_id: int) -> Repository:
         repository = self.repositories.get_by_user_and_id(self.current_user_id, repository_id)
         if repository is None:
