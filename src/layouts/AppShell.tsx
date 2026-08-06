@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
   BookOpen,
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/utils/cn";
 
 const nav = [
@@ -49,6 +50,17 @@ export function AppShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const initials = user?.username
+    ? user.username.slice(0, 2).toUpperCase()
+    : "?";
 
   const sidebar = (
     <div className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
@@ -153,15 +165,17 @@ export function AppShell({
                   <button className="flex items-center gap-2 rounded-full p-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-primary/15 text-xs text-primary">
-                        AK
+                        {initials}
                       </AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuLabel>
-                    <p className="text-sm font-medium">Ava Kirchner</p>
-                    <p className="text-xs font-normal text-muted-foreground">ava@northwind.dev</p>
+                    <p className="text-sm font-medium">{user?.username ?? "Guest"}</p>
+                    <p className="text-xs font-normal text-muted-foreground">
+                      {user?.email ?? ""}
+                    </p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -175,10 +189,8 @@ export function AppShell({
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/login">
-                      <LogOut className="mr-2 h-4 w-4" /> Sign out
-                    </Link>
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" /> Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

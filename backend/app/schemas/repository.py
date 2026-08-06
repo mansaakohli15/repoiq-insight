@@ -7,6 +7,19 @@ class RepositoryImportRequest(BaseModel):
     github_url: str
 
 
+class HealthScoreCheck(BaseModel):
+    name: str
+    passed: bool
+    weight: int
+    detail: str
+
+
+class HealthScoreResponse(BaseModel):
+    id: int
+    score: float
+    breakdown: list[HealthScoreCheck]
+
+
 class RepositoryCreate(BaseModel):
     user_id: int
     owner: str

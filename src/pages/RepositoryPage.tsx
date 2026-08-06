@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -11,6 +12,10 @@ import {
 
 import { AppShell } from "@/layouts/AppShell";
 import { HealthRing } from "@/components/shared/HealthRing";
+import { RepositoryActions } from "@/components/repository/RepositoryActions";
+import { RepositoryHeader } from "@/components/repository/RepositoryHeader";
+import { RepositoryStats } from "@/components/repository/RepositoryStats";
+import { StatusCard } from "@/components/repository/StatusCard";
 import {
   Accordion,
   AccordionContent,
@@ -21,14 +26,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { generateHealthScore, getRepositoryDetails } from "@/services/repositoryApi";
 import {
   healthBreakdown,
   interviewQuestions,
   readmePreview,
-  repositories,
   suggestions,
 } from "@/utils/mockData";
-import type { Repo } from "@/types/repository";
+import type { HealthScoreCheck, Repo } from "@/types/repository";
 
 const impactTone: Record<string, string> = {
   High: "border-destructive/40 text-destructive",
@@ -44,26 +49,116 @@ const difficultyTone: Record<string, string> = {
 
 export function RepositoryPage() {
   const { repoId } = useParams();
-  const repo = repositories.find((item) => item.id === repoId);
+  const [repo, setRepo] = useState<Repo | null>(null);
+  const [isMissing, setIsMissing] = useState(false);
+  const [healthChecks, setHealthChecks] = useState<HealthScoreCheck[]>([]);
+  const [isGeneratingHealthScore, setIsGeneratingHealthScore] = useState(false);
 
-  if (!repo) return <Navigate to="/dashboard" replace />;
+  useEffect(() => {
+    if (!repoId) {
+      setIsMissing(true);
+      return;
+    }
+
+    void getRepositoryDetails(Number(repoId))
+      .then((details) => {
+        const importedAt = details.imported_at
+          ? new Date(details.imported_at).toLocaleDateString()
+          : "—";
+
+        const nextRepo: Repo = {
+          id: String(details.id),
+          name: details.name,
+          owner: details.owner,
+          description: details.description ?? "",
+          language: details.primary_language ?? "Unknown",
+          stars: Number.isFinite(details.stars) ? details.stars : 0,
+          forks: Number.isFinite(details.forks) ? details.forks : 0,
+          issues: 0,
+          health: details.health_score ?? 0,
+          visibility: "Public",
+          updated: importedAt,
+          topics: [],
+          languages: [],
+          defaultBranch: details.default_branch ?? "main",
+          importedAt,
+        };
+
+        setRepo(nextRepo);
+        setHealthChecks(nextRepo.healthChecks ?? []);
+      })
+      .catch(() => {
+        setIsMissing(true);
+      });
+  }, [repoId]);
+
+  const handleGenerateHealthScore = async () => {
+    if (!repoId) return;
+
+    setIsGeneratingHealthScore(true);
+
+    try {
+      const result = await generateHealthScore(Number(repoId));
+      setRepo((current) =>
+        current
+          ? {
+              ...current,
+              health: result.score,
+              healthChecks: result.breakdown,
+            }
+          : current,
+      );
+      setHealthChecks(result.breakdown);
+    } catch {
+      setIsMissing(true);
+    } finally {
+      setIsGeneratingHealthScore(false);
+    }
+  };
+
+  if (isMissing) return <Navigate to="/dashboard" replace />;
+  if (!repo) {
+    return (
+      <AppShell title="Loading" subtitle="Loading repository details">
+        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+          Loading repository details...
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title={repo.name} subtitle={`${repo.owner}/${repo.name} · analyzed 12 minutes ago`}>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="space-y-4">
+        <RepositoryHeader repo={repo} />
+        <RepositoryActions
+          onGenerateHealthScore={handleGenerateHealthScore}
+          isGenerating={isGeneratingHealthScore}
+        />
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+          <RepositoryStats repo={repo} />
+          <StatusCard
+            healthScore={repo.health}
+            analysisStatus="Imported"
+            primaryLanguage={repo.language}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <section className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
             <div className="min-w-0">
               <h2 className="font-display text-lg font-semibold">Repository overview</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {repo.description}
-              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{repo.description}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {repo.topics.map((t) => (
-                  <Badge key={t} variant="secondary" className="font-normal">
-                    {t}
-                  </Badge>
-                ))}
+                {repo.topics?.length ? (
+                  repo.topics.map((t) => (
+                    <Badge key={t} variant="secondary" className="font-normal">
+                      {t}
+                    </Badge>
+                  ))
+                ) : null}
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
@@ -91,11 +186,19 @@ export function RepositoryPage() {
         </section>
 
         <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-semibold">Health score</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-lg font-semibold">Health score</h2>
+            <span className="text-sm font-medium text-primary">{repo.health}%</span>
+          </div>
           <div className="mt-5 flex flex-col items-center">
             <HealthRing score={repo.health} size={120} label="overall" />
           </div>
           <div className="mt-6 space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Repository health</span>
+              <span className="font-medium">{repo.health}%</span>
+            </div>
+            <Progress value={repo.health} className="mt-1.5 h-1.5" />
             {healthBreakdown.map((h) => (
               <div key={h.label}>
                 <div className="flex items-center justify-between text-xs">
@@ -105,6 +208,40 @@ export function RepositoryPage() {
                 <Progress value={h.value} className="mt-1.5 h-1.5" />
               </div>
             ))}
+          </div>
+          <div className="mt-6 rounded-lg border border-border bg-surface/60 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium">Checklist</h3>
+              <span className="text-xs text-muted-foreground">Deterministic GitHub signals</span>
+            </div>
+            <div className="mt-4 space-y-2">
+              {healthChecks.length > 0 ? (
+                healthChecks.map((check) => (
+                  <div
+                    key={check.name}
+                    className="flex items-start justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground">{check.name}</div>
+                      <div className="mt-1 text-muted-foreground">{check.detail}</div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 ${
+                        check.passed
+                          ? "bg-success/15 text-success"
+                          : "bg-destructive/15 text-destructive"
+                      }`}
+                    >
+                      {check.passed ? "Pass" : "Fail"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No health score checks have been generated yet.
+                </p>
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -176,6 +313,13 @@ export function RepositoryPage() {
             {readmePreview}
           </pre>
         </section>
+      </div>
+
+      <div className="mt-4">
+        <RepositoryActions
+          onGenerateHealthScore={handleGenerateHealthScore}
+          isGenerating={isGeneratingHealthScore}
+        />
       </div>
 
       <section className="mt-4 rounded-xl border border-border bg-card p-6">

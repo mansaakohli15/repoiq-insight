@@ -1,13 +1,37 @@
-import { Link } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Github } from "lucide-react";
 
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/context/AuthContext";
 
 export function RegisterPage() {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await register(username, email, password);
+      navigate("/dashboard");
+    } catch {
+      setError("Could not create account. Try a different username or email.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AuthLayout
       title="Create your account"
@@ -22,7 +46,7 @@ export function RegisterPage() {
       }
     >
       <div className="space-y-5">
-        <Button variant="outline" className="w-full gap-2">
+        <Button variant="outline" className="w-full gap-2" disabled>
           <Github className="h-4 w-4" /> Sign up with GitHub
         </Button>
 
@@ -32,41 +56,47 @@ export function RegisterPage() {
           <span className="h-px flex-1 bg-border" />
         </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="first">First name</Label>
-              <Input id="first" placeholder="Ava" className="bg-surface" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="last">Last name</Label>
-              <Input id="last" placeholder="Kirchner" className="bg-surface" />
-            </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="avakirchner"
+              className="bg-surface"
+              required
+              minLength={3}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Work email</Label>
-            <Input id="email" type="email" placeholder="ava@northwind.dev" className="bg-surface" />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ava@northwind.dev"
+              className="bg-surface"
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               className="bg-surface"
+              required
+              minLength={8}
             />
           </div>
-          <label className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-            <Checkbox id="terms" className="mt-0.5" />
-            <span>I agree to the Terms of Service and Privacy Policy.</span>
-          </label>
-          <Button asChild className="w-full">
-            <Link to="/dashboard">Create account</Link>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Creating account…" : "Create account"}
           </Button>
         </form>
       </div>

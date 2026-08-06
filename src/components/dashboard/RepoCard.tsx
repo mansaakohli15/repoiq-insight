@@ -51,7 +51,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
           <CircleDot className="h-3.5 w-3.5" />
           {repo.issues}
         </span>
-        <span className="ml-auto">{repo.updated}</span>
+        <span className="ml-auto text-primary">Open</span>
       </div>
     </Link>
   );

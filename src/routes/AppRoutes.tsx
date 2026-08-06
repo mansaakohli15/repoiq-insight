@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 
+import { PrivateRoute } from "@/routes/PrivateRoute";
+
 const LandingPage = lazy(() =>
   import("@/pages/LandingPage").then(({ LandingPage }) => ({ default: LandingPage })),
 );
@@ -33,11 +35,15 @@ export function AppRoutes() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/repository/:repoId" element={<RepositoryPage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+
+        <Route element={<PrivateRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/repository/:repoId" element={<RepositoryPage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+
         <Route path="*" element={<LandingPage />} />
       </Routes>
     </Suspense>
