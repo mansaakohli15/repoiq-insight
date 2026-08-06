@@ -1,3 +1,10 @@
+export type HealthScoreCheck = {
+  name: string;
+  passed: boolean;
+  weight: number;
+  detail: string;
+};
+
 export type Repo = {
   id: string;
   name: string;
@@ -12,4 +19,7 @@ export type Repo = {
   updated: string;
   topics: string[];
   languages: { name: string; percent: number }[];
+  defaultBranch?: string;
+  importedAt?: string;
+  healthChecks?: HealthScoreCheck[];
 };

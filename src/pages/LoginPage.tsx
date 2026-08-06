@@ -1,13 +1,35 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Github } from "lucide-react";
 
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await login(email, password);
+      navigate("/dashboard");
+    } catch {
+      setError("Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AuthLayout
       title="Welcome back"
@@ -22,7 +44,7 @@ export function LoginPage() {
       }
     >
       <div className="space-y-5">
-        <Button variant="outline" className="w-full gap-2">
+        <Button variant="outline" className="w-full gap-2" disabled>
           <Github className="h-4 w-4" /> Continue with GitHub
         </Button>
 
@@ -32,30 +54,34 @@ export function LoginPage() {
           <span className="h-px flex-1 bg-border" />
         </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
-        >
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="email">Work email</Label>
-            <Input id="email" type="email" placeholder="ava@northwind.dev" className="bg-surface" />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ava@northwind.dev"
+              className="bg-surface"
+              required
+            />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <span className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                Forgot?
-              </span>
-            </div>
-            <Input id="password" type="password" placeholder="••••••••" className="bg-surface" />
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="bg-surface"
+              required
+            />
           </div>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Checkbox id="remember" /> Keep me signed in
-          </label>
-          <Button asChild className="w-full">
-            <Link to="/dashboard">Sign in</Link>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>
       </div>

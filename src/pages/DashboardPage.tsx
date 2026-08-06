@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, FolderGit2, GaugeCircle, Plus, ShieldAlert } from "lucide-react";
 import {
@@ -17,11 +18,14 @@ import {
 
 import { RepoCard } from "@/components/dashboard/RepoCard";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { RepositoryImportModal } from "@/components/RepositoryImportModal";
 import { AppShell } from "@/layouts/AppShell";
 import { HealthRing } from "@/components/shared/HealthRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { importRepository } from "@/services/repositoryApi";
+import type { Repo } from "@/types/repository";
 import {
   analyticsSeries,
   healthBreakdown,
@@ -45,9 +49,20 @@ const statusTone: Record<string, string> = {
 };
 
 export function DashboardPage() {
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [repositoryList, setRepositoryList] = useState<Repo[]>(repositories);
+
+  const refreshDashboard = (importedRepo: Repo) => {
+    setRepositoryList((current) => [importedRepo, ...current]);
+  };
+
   return (
     <AppShell title="Dashboard" subtitle="Workspace overview for Northwind Labs">
       <div className="mb-6 flex flex-wrap items-center gap-2">
+        <Button className="gap-2" onClick={() => setIsImportOpen(true)}>
+          <Plus className="h-4 w-4" /> Import Repository
+        </Button>
         <Button className="gap-2">
           <Plus className="h-4 w-4" /> Analyze repository
         </Button>
@@ -55,6 +70,12 @@ export function DashboardPage() {
           <Link to="/chat">Ask the AI</Link>
         </Button>
       </div>
+
+      {notice ? (
+        <div className="mb-4 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+          {notice}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={FolderGit2} label="Repositories" value="24" delta="+3" />
@@ -71,7 +92,7 @@ export function DashboardPage() {
           </span>
         </div>
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {repositories.map((r) => (
+          {repositoryList.map((r) => (
             <RepoCard key={r.id} repo={r} />
           ))}
         </div>
@@ -260,6 +281,31 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <RepositoryImportModal
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSubmit={async (githubUrl) => {
+          const imported = await importRepository(githubUrl);
+          refreshDashboard({
+            id: String(imported.id),
+            name: imported.name,
+            owner: imported.owner,
+            description: imported.description ?? "",
+            language: imported.primary_language ?? "Unknown",
+            stars: imported.stars,
+            forks: imported.forks,
+            issues: 0,
+            health: imported.health_score ?? 0,
+            visibility: "Public",
+            updated: "just now",
+            topics: [],
+            languages: [],
+          });
+          setNotice(`Repository imported successfully: ${imported.owner}/${imported.name}.`);
+          setIsImportOpen(false);
+        }}
+      />
     </AppShell>
   );
 }
