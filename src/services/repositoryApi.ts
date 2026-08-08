@@ -32,6 +32,17 @@ export type HealthScoreResponse = {
   breakdown: HealthScoreCheck[];
 };
 
+export type AnalysisResponse = {
+  id: number;
+  repository_id: number;
+  summary: string | null;
+  architecture: string | null;
+  tech_stack: string | null;
+  use_cases: string | null;
+  limitations: string | null;
+  created_at: string;
+};
+
 export async function listRepositories(): Promise<RepositoryImportResponse[]> {
   const response = await api.get<RepositoryImportResponse[]>("/repositories");
   return response.data;
@@ -54,5 +65,15 @@ export async function generateHealthScore(repositoryId: number): Promise<HealthS
     `/repositories/${repositoryId}/health-score`,
     {},
   );
+  return response.data;
+}
+
+export async function generateAnalysis(repositoryId: number): Promise<AnalysisResponse> {
+  const response = await api.post<AnalysisResponse>(`/repositories/${repositoryId}/analyze`, {});
+  return response.data;
+}
+
+export async function getAnalysis(repositoryId: number): Promise<AnalysisResponse | null> {
+  const response = await api.get<AnalysisResponse | null>(`/repositories/${repositoryId}/analysis`);
   return response.data;
 }

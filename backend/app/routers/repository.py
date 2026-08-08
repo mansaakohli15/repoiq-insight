@@ -64,3 +64,12 @@ def get_repository_analysis(
     current_user: User = Depends(get_current_user),
 ) -> Analysis | None:
     return AnalysisService(db, current_user.id).get_latest_summary(repository_id)
+
+
+@router.post("/{repository_id}/readme", response_model=AnalysisRead, status_code=status.HTTP_201_CREATED)
+def generate_repository_readme(
+    repository_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Analysis:
+    return AnalysisService(db, current_user.id).generate_readme(repository_id)

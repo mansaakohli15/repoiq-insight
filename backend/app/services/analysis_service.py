@@ -24,8 +24,8 @@ class AnalysisService:
     def generate_summary(self, repository_id: int) -> Analysis:
         repository = self._get_owned_repository(repository_id)
         readme_text = self._fetch_readme(repository)
-        prompt = self._build_prompt(repository, readme_text)
-        result = self._call_groq(prompt)
+        prompt = self._build_summary_prompt(repository, readme_text)
+        result = self._call_groq_json(prompt)
 
         analysis = Analysis(
             repository_id=repository.id,
@@ -34,6 +34,25 @@ class AnalysisService:
             tech_stack=result["tech_stack"],
             use_cases=result["use_cases"],
             limitations=result["limitations"],
+        )
+        return self.analyses.create(analysis)
+
+    def generate_readme(self, repository_id: int) -> Analysis:
+        repository = self._get_owned_repository(repository_id)
+        existing_readme = self._fetch_readme(repository)
+        latest_analysis = self.analyses.get_latest_by_repository_id(repository.id)
+
+        prompt = self._build_readme_prompt(repository, existing_readme, latest_analysis)
+        readme_markdown = self._call_groq_text(prompt)
+
+        analysis = Analysis(
+            repository_id=repository.id,
+            summary=latest_analysis.summary if latest_analysis else None,
+            architecture=latest_analysis.architecture if latest_analysis else None,
+            tech_stack=latest_analysis.tech_stack if latest_analysis else None,
+            use_cases=latest_analysis.use_cases if latest_analysis else None,
+            limitations=latest_analysis.limitations if latest_analysis else None,
+            readme_markdown=readme_markdown,
         )
         return self.analyses.create(analysis)
 
@@ -61,7 +80,7 @@ class AnalysisService:
                 continue
         return ""
 
-    def _build_prompt(self, repository: Repository, readme_text: str) -> str:
+    def _build_summary_prompt(self, repository: Repository, readme_text: str) -> str:
         return (
             f"You are analyzing the GitHub repository {repository.owner}/{repository.name}.\n"
             f"Primary language: {repository.primary_language or 'unknown'}.\n"
@@ -77,22 +96,34 @@ class AnalysisService:
             "limitations: gaps, missing docs, or things unclear from the available information."
         )
 
-    def _call_groq(self, prompt: str) -> dict[str, str]:
-        client = self._get_client()
-        try:
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=800,
+    def _build_readme_prompt(
+        self, repository: Repository, existing_readme: str, latest_analysis: Analysis | None
+    ) -> str:
+        context = ""
+        if latest_analysis and latest_analysis.summary:
+            context = (
+                f"Known summary: {latest_analysis.summary}\n"
+                f"Known architecture: {latest_analysis.architecture or ''}\n"
+                f"Known tech stack: {latest_analysis.tech_stack or ''}\n"
             )
-        except Exception as error:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Unable to reach the AI summary service",
-            ) from error
 
-        content = (completion.choices[0].message.content or "{}").strip()
+        return (
+            f"Write a professional README.md for the GitHub repository "
+            f"{repository.owner}/{repository.name}.\n"
+            f"Primary language: {repository.primary_language or 'unknown'}.\n"
+            f"Description: {repository.description or 'none provided'}.\n"
+            f"{context}"
+            f"Existing README content, if any (may be truncated, use as reference "
+            f"only, do not copy verbatim):\n{existing_readme or 'None found.'}\n\n"
+            "Respond with ONLY the README content in valid Markdown, no code fences around "
+            "the whole thing, no commentary before or after. Include: a title, a short "
+            "description, a Features section, a Tech Stack section, a Getting Started / "
+            "Installation section with generic setup steps, and a Usage section. "
+            "Keep it concise and professional."
+        )
+
+    def _call_groq_json(self, prompt: str) -> dict[str, str]:
+        content = self._call_groq_raw(prompt)
         if content.startswith("```"):
             content = content.strip("`")
             if content.lower().startswith("json"):
@@ -113,6 +144,34 @@ class AnalysisService:
             "use_cases": str(parsed.get("use_cases", "")),
             "limitations": str(parsed.get("limitations", "")),
         }
+
+    def _call_groq_text(self, prompt: str) -> str:
+        content = self._call_groq_raw(prompt)
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines)
+        return content.strip()
+
+    def _call_groq_raw(self, prompt: str) -> str:
+        client = self._get_client()
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=1200,
+            )
+        except Exception as error:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Unable to reach the AI summary service",
+            ) from error
+
+        return (completion.choices[0].message.content or "").strip()
 
     def _get_client(self) -> Groq:
         if self._client is None:

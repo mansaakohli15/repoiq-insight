@@ -10,6 +10,7 @@ class AnalysisCreate(BaseModel):
     tech_stack: str | None = None
     use_cases: str | None = None
     limitations: str | None = None
+    readme_markdown: str | None = None
 
 
 class AnalysisRead(AnalysisCreate):

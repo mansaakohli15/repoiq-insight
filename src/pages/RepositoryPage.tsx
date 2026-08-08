@@ -26,7 +26,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { generateHealthScore, getRepositoryDetails } from "@/services/repositoryApi";
+import {
+  generateAnalysis,
+  generateHealthScore,
+  getAnalysis,
+  getRepositoryDetails,
+  type AnalysisResponse,
+} from "@/services/repositoryApi";
 import {
   healthBreakdown,
   interviewQuestions,
@@ -53,6 +59,9 @@ export function RepositoryPage() {
   const [isMissing, setIsMissing] = useState(false);
   const [healthChecks, setHealthChecks] = useState<HealthScoreCheck[]>([]);
   const [isGeneratingHealthScore, setIsGeneratingHealthScore] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!repoId) {
@@ -90,6 +99,8 @@ export function RepositoryPage() {
       .catch(() => {
         setIsMissing(true);
       });
+
+    void getAnalysis(Number(repoId)).then(setAnalysis).catch(() => setAnalysis(null));
   }, [repoId]);
 
   const handleGenerateHealthScore = async () => {
@@ -116,6 +127,22 @@ export function RepositoryPage() {
     }
   };
 
+  const handleAnalyze = async () => {
+    if (!repoId) return;
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const result = await generateAnalysis(Number(repoId));
+      setAnalysis(result);
+    } catch {
+      setAnalysisError("Could not generate an AI summary right now. Try again in a moment.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   if (isMissing) return <Navigate to="/dashboard" replace />;
   if (!repo) {
     return (
@@ -128,18 +155,20 @@ export function RepositoryPage() {
   }
 
   return (
-    <AppShell title={repo.name} subtitle={`${repo.owner}/${repo.name} · analyzed 12 minutes ago`}>
+    <AppShell title={repo.name} subtitle={`${repo.owner}/${repo.name}`}>
       <div className="space-y-4">
         <RepositoryHeader repo={repo} />
         <RepositoryActions
           onGenerateHealthScore={handleGenerateHealthScore}
           isGenerating={isGeneratingHealthScore}
+          onAnalyze={handleAnalyze}
+          isAnalyzing={isAnalyzing}
         />
         <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
           <RepositoryStats repo={repo} />
           <StatusCard
             healthScore={repo.health}
-            analysisStatus="Imported"
+            analysisStatus={analysis ? "Analyzed" : "Imported"}
             primaryLanguage={repo.language}
           />
         </div>
@@ -162,7 +191,7 @@ export function RepositoryPage() {
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleAnalyze} disabled={isAnalyzing}>
                 <RefreshCw className="h-3.5 w-3.5" /> Re-analyze
               </Button>
             </div>
@@ -251,24 +280,52 @@ export function RepositoryPage() {
           <Sparkle className="h-4 w-4 text-primary" />
           <h2 className="font-display text-lg font-semibold">AI summary</h2>
         </div>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
-          <p>
-            <span className="text-foreground">{repo.name}</span> is a {repo.language}-first service
-            organised around a thin ingress layer, a resolver core and a set of pluggable adapters.
-            Roughly 62% of the code lives under the core module, which also absorbs most of the
-            recent commit activity.
+
+        {analysisError ? (
+          <p className="mt-3 text-sm text-destructive">{analysisError}</p>
+        ) : null}
+
+        {isAnalyzing ? (
+          <p className="mt-4 text-sm text-muted-foreground">Analyzing repository with AI…</p>
+        ) : analysis ? (
+          <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground">
+            {analysis.summary ? (
+              <p>
+                <span className="font-medium text-foreground">Summary: </span>
+                {analysis.summary}
+              </p>
+            ) : null}
+            {analysis.architecture ? (
+              <p>
+                <span className="font-medium text-foreground">Architecture: </span>
+                {analysis.architecture}
+              </p>
+            ) : null}
+            {analysis.tech_stack ? (
+              <p>
+                <span className="font-medium text-foreground">Tech stack: </span>
+                {analysis.tech_stack}
+              </p>
+            ) : null}
+            {analysis.use_cases ? (
+              <p>
+                <span className="font-medium text-foreground">Use cases: </span>
+                {analysis.use_cases}
+              </p>
+            ) : null}
+            {analysis.limitations ? (
+              <p>
+                <span className="font-medium text-foreground">Limitations: </span>
+                {analysis.limitations}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            No AI summary yet. Click "Analyze Repository" above to generate one.
           </p>
-          <p>
-            The architecture is conventional and easy to follow: requests enter through the gateway,
-            are authenticated, resolved against downstream services, then cached in a layered store.
-            Observability is wired throughout, which makes the runtime behaviour unusually legible.
-          </p>
-          <p>
-            The main risk is concentration — the most-changed module also carries the least test
-            coverage, and the caching strategy is undocumented. Both are cheap to fix and would move
-            the health score into the low nineties.
-          </p>
-        </div>
+        )}
+
         <div className="mt-5">
           <Button asChild variant="outline" size="sm">
             <Link to="/chat">Ask a follow-up question</Link>
@@ -319,6 +376,8 @@ export function RepositoryPage() {
         <RepositoryActions
           onGenerateHealthScore={handleGenerateHealthScore}
           isGenerating={isGeneratingHealthScore}
+          onAnalyze={handleAnalyze}
+          isAnalyzing={isAnalyzing}
         />
       </div>
 
