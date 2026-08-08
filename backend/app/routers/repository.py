@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_user, get_db
+from app.models.analysis import Analysis
 from app.models.repository import Repository
 from app.models.user import User
+from app.schemas.analysis import AnalysisRead
 from app.schemas.repository import HealthScoreResponse, RepositoryImportRequest, RepositoryRead
+from app.services.analysis_service import AnalysisService
 from app.services.github_service import GitHubService
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
@@ -43,3 +46,21 @@ def generate_repository_health_score(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     return GitHubService(db, current_user.id).generate_health_score(repository_id)
+
+
+@router.post("/{repository_id}/analyze", response_model=AnalysisRead, status_code=status.HTTP_201_CREATED)
+def analyze_repository(
+    repository_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Analysis:
+    return AnalysisService(db, current_user.id).generate_summary(repository_id)
+
+
+@router.get("/{repository_id}/analysis", response_model=AnalysisRead | None)
+def get_repository_analysis(
+    repository_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Analysis | None:
+    return AnalysisService(db, current_user.id).get_latest_summary(repository_id)

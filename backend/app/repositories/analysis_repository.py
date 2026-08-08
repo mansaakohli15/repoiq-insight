@@ -15,6 +15,14 @@ class AnalysisRepository:
         statement = select(Analysis).where(Analysis.repository_id == repository_id)
         return list(self.session.scalars(statement))
 
+    def get_latest_by_repository_id(self, repository_id: int) -> Analysis | None:
+        statement = (
+            select(Analysis)
+            .where(Analysis.repository_id == repository_id)
+            .order_by(Analysis.created_at.desc())
+        )
+        return self.session.scalars(statement).first()
+
     def create(self, analysis: Analysis) -> Analysis:
         self.session.add(analysis)
         self.session.commit()
