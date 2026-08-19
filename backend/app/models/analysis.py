@@ -23,6 +23,7 @@ class Analysis(Base):
     use_cases: Mapped[str | None] = mapped_column(Text)
     limitations: Mapped[str | None] = mapped_column(Text)
     readme_markdown: Mapped[str | None] = mapped_column(Text)
+    interview_questions: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

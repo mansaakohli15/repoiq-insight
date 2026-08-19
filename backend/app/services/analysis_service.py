@@ -11,6 +11,7 @@ from app.models.analysis import Analysis
 from app.models.repository import Repository
 from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.repository_repository import RepositoryRepository
+from app.schemas.analysis import AnalysisRead, InterviewQuestion
 
 
 class AnalysisService:
@@ -21,7 +22,7 @@ class AnalysisService:
         self.analyses = AnalysisRepository(session)
         self._client: Groq | None = None
 
-    def generate_summary(self, repository_id: int) -> Analysis:
+    def generate_summary(self, repository_id: int) -> AnalysisRead:
         repository = self._get_owned_repository(repository_id)
         readme_text = self._fetch_readme(repository)
         prompt = self._build_summary_prompt(repository, readme_text)
@@ -35,9 +36,10 @@ class AnalysisService:
             use_cases=result["use_cases"],
             limitations=result["limitations"],
         )
-        return self.analyses.create(analysis)
+        saved = self.analyses.create(analysis)
+        return self._to_read(saved)
 
-    def generate_readme(self, repository_id: int) -> Analysis:
+    def generate_readme(self, repository_id: int) -> AnalysisRead:
         repository = self._get_owned_repository(repository_id)
         existing_readme = self._fetch_readme(repository)
         latest_analysis = self.analyses.get_latest_by_repository_id(repository.id)
@@ -53,12 +55,58 @@ class AnalysisService:
             use_cases=latest_analysis.use_cases if latest_analysis else None,
             limitations=latest_analysis.limitations if latest_analysis else None,
             readme_markdown=readme_markdown,
+            interview_questions=latest_analysis.interview_questions if latest_analysis else None,
         )
-        return self.analyses.create(analysis)
+        saved = self.analyses.create(analysis)
+        return self._to_read(saved)
 
-    def get_latest_summary(self, repository_id: int) -> Analysis | None:
+    def generate_interview_questions(self, repository_id: int) -> AnalysisRead:
         repository = self._get_owned_repository(repository_id)
-        return self.analyses.get_latest_by_repository_id(repository.id)
+        readme_text = self._fetch_readme(repository)
+        latest_analysis = self.analyses.get_latest_by_repository_id(repository.id)
+
+        prompt = self._build_interview_prompt(repository, readme_text, latest_analysis)
+        questions = self._call_groq_questions(prompt)
+
+        analysis = Analysis(
+            repository_id=repository.id,
+            summary=latest_analysis.summary if latest_analysis else None,
+            architecture=latest_analysis.architecture if latest_analysis else None,
+            tech_stack=latest_analysis.tech_stack if latest_analysis else None,
+            use_cases=latest_analysis.use_cases if latest_analysis else None,
+            limitations=latest_analysis.limitations if latest_analysis else None,
+            readme_markdown=latest_analysis.readme_markdown if latest_analysis else None,
+            interview_questions=json.dumps(questions),
+        )
+        saved = self.analyses.create(analysis)
+        return self._to_read(saved)
+
+    def get_latest_summary(self, repository_id: int) -> AnalysisRead | None:
+        repository = self._get_owned_repository(repository_id)
+        latest = self.analyses.get_latest_by_repository_id(repository.id)
+        return self._to_read(latest) if latest else None
+
+    def _to_read(self, analysis: Analysis) -> AnalysisRead:
+        parsed_questions: list[InterviewQuestion] | None = None
+        if analysis.interview_questions:
+            try:
+                raw = json.loads(analysis.interview_questions)
+                parsed_questions = [InterviewQuestion(**q) for q in raw]
+            except (json.JSONDecodeError, TypeError, ValueError):
+                parsed_questions = None
+
+        return AnalysisRead(
+            id=analysis.id,
+            repository_id=analysis.repository_id,
+            summary=analysis.summary,
+            architecture=analysis.architecture,
+            tech_stack=analysis.tech_stack,
+            use_cases=analysis.use_cases,
+            limitations=analysis.limitations,
+            readme_markdown=analysis.readme_markdown,
+            interview_questions=parsed_questions,
+            created_at=analysis.created_at,
+        )
 
     def _get_owned_repository(self, repository_id: int) -> Repository:
         repository = self.repositories.get_by_user_and_id(self.current_user_id, repository_id)
@@ -122,12 +170,34 @@ class AnalysisService:
             "Keep it concise and professional."
         )
 
+    def _build_interview_prompt(
+        self, repository: Repository, readme_text: str, latest_analysis: Analysis | None
+    ) -> str:
+        context = ""
+        if latest_analysis and latest_analysis.summary:
+            context = (
+                f"Known summary: {latest_analysis.summary}\n"
+                f"Known architecture: {latest_analysis.architecture or ''}\n"
+                f"Known tech stack: {latest_analysis.tech_stack or ''}\n"
+            )
+
+        return (
+            f"You are preparing technical interview questions about the GitHub repository "
+            f"{repository.owner}/{repository.name}.\n"
+            f"Primary language: {repository.primary_language or 'unknown'}.\n"
+            f"{context}"
+            f"README contents (may be truncated):\n{readme_text or 'No README found.'}\n\n"
+            "Generate exactly 6 interview questions a technical interviewer could reasonably "
+            "ask a candidate about THIS specific repository's design and implementation choices. "
+            "Mix difficulty levels: 2 easy, 2 medium, 2 hard. "
+            "Respond with ONLY a JSON array, no markdown, no code fences, of exactly 6 objects, "
+            "each with exactly these keys: question (string), difficulty (one of: Easy, Medium, Hard), "
+            "tag (a short 2-4 word topic label, e.g. 'Architecture', 'Data flow', 'Trade-offs')."
+        )
+
     def _call_groq_json(self, prompt: str) -> dict[str, str]:
         content = self._call_groq_raw(prompt)
-        if content.startswith("```"):
-            content = content.strip("`")
-            if content.lower().startswith("json"):
-                content = content[4:]
+        content = self._strip_code_fences(content)
 
         try:
             parsed = json.loads(content)
@@ -145,8 +215,43 @@ class AnalysisService:
             "limitations": str(parsed.get("limitations", "")),
         }
 
+    def _call_groq_questions(self, prompt: str) -> list[dict[str, str]]:
+        content = self._call_groq_raw(prompt)
+        content = self._strip_code_fences(content)
+
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as error:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI summary service returned an unexpected response",
+            ) from error
+
+        if not isinstance(parsed, list):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI summary service returned an unexpected response",
+            )
+
+        questions: list[dict[str, str]] = []
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            questions.append(
+                {
+                    "question": str(item.get("question", "")),
+                    "difficulty": str(item.get("difficulty", "Medium")),
+                    "tag": str(item.get("tag", "General")),
+                }
+            )
+        return questions
+
     def _call_groq_text(self, prompt: str) -> str:
         content = self._call_groq_raw(prompt)
+        return self._strip_code_fences(content)
+
+    def _strip_code_fences(self, content: str) -> str:
+        content = content.strip()
         if content.startswith("```"):
             lines = content.split("\n")
             if lines[0].startswith("```"):
@@ -160,7 +265,7 @@ class AnalysisService:
         client = self._get_client()
         try:
             completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=1200,

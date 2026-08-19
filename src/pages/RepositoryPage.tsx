@@ -29,16 +29,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   generateAnalysis,
   generateHealthScore,
+  generateReadme,
   getAnalysis,
   getRepositoryDetails,
   type AnalysisResponse,
 } from "@/services/repositoryApi";
-import {
-  healthBreakdown,
-  interviewQuestions,
-  readmePreview,
-  suggestions,
-} from "@/utils/mockData";
+import { healthBreakdown, interviewQuestions, suggestions } from "@/utils/mockData";
 import type { HealthScoreCheck, Repo } from "@/types/repository";
 
 const impactTone: Record<string, string> = {
@@ -62,6 +58,8 @@ export function RepositoryPage() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isGeneratingReadme, setIsGeneratingReadme] = useState(false);
+  const [readmeError, setReadmeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!repoId) {
@@ -143,6 +141,22 @@ export function RepositoryPage() {
     }
   };
 
+  const handleGenerateReadme = async () => {
+    if (!repoId) return;
+
+    setIsGeneratingReadme(true);
+    setReadmeError(null);
+
+    try {
+      const result = await generateReadme(Number(repoId));
+      setAnalysis(result);
+    } catch {
+      setReadmeError("Could not generate a README right now. Try again in a moment.");
+    } finally {
+      setIsGeneratingReadme(false);
+    }
+  };
+
   if (isMissing) return <Navigate to="/dashboard" replace />;
   if (!repo) {
     return (
@@ -163,6 +177,8 @@ export function RepositoryPage() {
           isGenerating={isGeneratingHealthScore}
           onAnalyze={handleAnalyze}
           isAnalyzing={isAnalyzing}
+          onGenerateReadme={handleGenerateReadme}
+          isGeneratingReadme={isGeneratingReadme}
         />
         <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
           <RepositoryStats repo={repo} />
@@ -363,12 +379,25 @@ export function RepositoryPage() {
 
         <section className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-semibold">README preview</h2>
+            <h2 className="font-display text-lg font-semibold">README</h2>
             <Badge variant="outline">README.md</Badge>
           </div>
-          <pre className="mt-5 max-h-72 overflow-auto rounded-lg border border-border bg-surface/70 p-4 font-mono text-xs leading-relaxed text-muted-foreground">
-            {readmePreview}
-          </pre>
+
+          {readmeError ? (
+            <p className="mt-3 text-sm text-destructive">{readmeError}</p>
+          ) : null}
+
+          {isGeneratingReadme ? (
+            <p className="mt-4 text-sm text-muted-foreground">Generating README with AI…</p>
+          ) : analysis?.readme_markdown ? (
+            <pre className="mt-5 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface/70 p-4 font-mono text-xs leading-relaxed text-muted-foreground">
+              {analysis.readme_markdown}
+            </pre>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No README generated yet. Click "Generate README" above.
+            </p>
+          )}
         </section>
       </div>
 
@@ -378,6 +407,8 @@ export function RepositoryPage() {
           isGenerating={isGeneratingHealthScore}
           onAnalyze={handleAnalyze}
           isAnalyzing={isAnalyzing}
+          onGenerateReadme={handleGenerateReadme}
+          isGeneratingReadme={isGeneratingReadme}
         />
       </div>
 

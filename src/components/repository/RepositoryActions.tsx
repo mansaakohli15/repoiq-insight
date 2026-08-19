@@ -5,11 +5,15 @@ export function RepositoryActions({
   isGenerating,
   onAnalyze,
   isAnalyzing,
+  onGenerateReadme,
+  isGeneratingReadme,
 }: {
   onGenerateHealthScore: () => void;
   isGenerating: boolean;
   onAnalyze: () => void;
   isAnalyzing: boolean;
+  onGenerateReadme: () => void;
+  isGeneratingReadme: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -20,7 +24,10 @@ export function RepositoryActions({
         <Button variant="outline" onClick={onAnalyze} disabled={isAnalyzing}>
           {isAnalyzing ? "Analyzing..." : "Analyze Repository"}
         </Button>
-        {["Generate README", "Interview Questions", "Chat with Repository"].map((label) => (
+        <Button variant="outline" onClick={onGenerateReadme} disabled={isGeneratingReadme}>
+          {isGeneratingReadme ? "Generating..." : "Generate README"}
+        </Button>
+        {["Interview Questions", "Chat with Repository"].map((label) => (
           <Button
             key={label}
             variant="outline"

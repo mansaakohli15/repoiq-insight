@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_user, get_db
-from app.models.analysis import Analysis
 from app.models.repository import Repository
 from app.models.user import User
 from app.schemas.analysis import AnalysisRead
@@ -53,7 +52,7 @@ def analyze_repository(
     repository_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Analysis:
+) -> AnalysisRead:
     return AnalysisService(db, current_user.id).generate_summary(repository_id)
 
 
@@ -62,7 +61,7 @@ def get_repository_analysis(
     repository_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Analysis | None:
+) -> AnalysisRead | None:
     return AnalysisService(db, current_user.id).get_latest_summary(repository_id)
 
 
@@ -71,5 +70,18 @@ def generate_repository_readme(
     repository_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Analysis:
+) -> AnalysisRead:
     return AnalysisService(db, current_user.id).generate_readme(repository_id)
+
+
+@router.post(
+    "/{repository_id}/interview-questions",
+    response_model=AnalysisRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_repository_interview_questions(
+    repository_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AnalysisRead:
+    return AnalysisService(db, current_user.id).generate_interview_questions(repository_id)

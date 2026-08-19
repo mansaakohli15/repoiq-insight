@@ -40,6 +40,7 @@ export type AnalysisResponse = {
   tech_stack: string | null;
   use_cases: string | null;
   limitations: string | null;
+  readme_markdown: string | null;
   created_at: string;
 };
 
@@ -75,5 +76,10 @@ export async function generateAnalysis(repositoryId: number): Promise<AnalysisRe
 
 export async function getAnalysis(repositoryId: number): Promise<AnalysisResponse | null> {
   const response = await api.get<AnalysisResponse | null>(`/repositories/${repositoryId}/analysis`);
+  return response.data;
+}
+
+export async function generateReadme(repositoryId: number): Promise<AnalysisResponse> {
+  const response = await api.post<AnalysisResponse>(`/repositories/${repositoryId}/readme`, {});
   return response.data;
 }
