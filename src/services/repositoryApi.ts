@@ -32,6 +32,12 @@ export type HealthScoreResponse = {
   breakdown: HealthScoreCheck[];
 };
 
+export type InterviewQuestion = {
+  question: string;
+  difficulty: string;
+  tag: string;
+};
+
 export type AnalysisResponse = {
   id: number;
   repository_id: number;
@@ -41,6 +47,7 @@ export type AnalysisResponse = {
   use_cases: string | null;
   limitations: string | null;
   readme_markdown: string | null;
+  interview_questions: InterviewQuestion[] | null;
   created_at: string;
 };
 
@@ -81,5 +88,13 @@ export async function getAnalysis(repositoryId: number): Promise<AnalysisRespons
 
 export async function generateReadme(repositoryId: number): Promise<AnalysisResponse> {
   const response = await api.post<AnalysisResponse>(`/repositories/${repositoryId}/readme`, {});
+  return response.data;
+}
+
+export async function generateInterviewQuestions(repositoryId: number): Promise<AnalysisResponse> {
+  const response = await api.post<AnalysisResponse>(
+    `/repositories/${repositoryId}/interview-questions`,
+    {},
+  );
   return response.data;
 }

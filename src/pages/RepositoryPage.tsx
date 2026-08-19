@@ -29,12 +29,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   generateAnalysis,
   generateHealthScore,
+  generateInterviewQuestions,
   generateReadme,
   getAnalysis,
   getRepositoryDetails,
   type AnalysisResponse,
 } from "@/services/repositoryApi";
-import { healthBreakdown, interviewQuestions, suggestions } from "@/utils/mockData";
+// NOTE: `suggestions` (Improvement suggestions tab) is still placeholder data —
+// no backend feature builds this yet.
+import { healthBreakdown, suggestions } from "@/utils/mockData";
 import type { HealthScoreCheck, Repo } from "@/types/repository";
 
 const impactTone: Record<string, string> = {
@@ -60,6 +63,8 @@ export function RepositoryPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isGeneratingReadme, setIsGeneratingReadme] = useState(false);
   const [readmeError, setReadmeError] = useState<string | null>(null);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [questionsError, setQuestionsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!repoId) {
@@ -157,6 +162,22 @@ export function RepositoryPage() {
     }
   };
 
+  const handleGenerateQuestions = async () => {
+    if (!repoId) return;
+
+    setIsGeneratingQuestions(true);
+    setQuestionsError(null);
+
+    try {
+      const result = await generateInterviewQuestions(Number(repoId));
+      setAnalysis(result);
+    } catch {
+      setQuestionsError("Could not generate interview questions right now. Try again in a moment.");
+    } finally {
+      setIsGeneratingQuestions(false);
+    }
+  };
+
   if (isMissing) return <Navigate to="/dashboard" replace />;
   if (!repo) {
     return (
@@ -179,6 +200,8 @@ export function RepositoryPage() {
           isAnalyzing={isAnalyzing}
           onGenerateReadme={handleGenerateReadme}
           isGeneratingReadme={isGeneratingReadme}
+          onGenerateInterviewQuestions={handleGenerateQuestions}
+          isGeneratingInterviewQuestions={isGeneratingQuestions}
         />
         <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
           <RepositoryStats repo={repo} />
@@ -409,6 +432,8 @@ export function RepositoryPage() {
           isAnalyzing={isAnalyzing}
           onGenerateReadme={handleGenerateReadme}
           isGeneratingReadme={isGeneratingReadme}
+          onGenerateInterviewQuestions={handleGenerateQuestions}
+          isGeneratingInterviewQuestions={isGeneratingQuestions}
         />
       </div>
 
@@ -420,22 +445,34 @@ export function RepositoryPage() {
           </TabsList>
 
           <TabsContent value="questions" className="mt-5">
-            <ul className="space-y-3">
-              {interviewQuestions.map((q) => (
-                <li
-                  key={q.q}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 rounded-lg border border-border bg-surface/60 p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm leading-relaxed">{q.q}</p>
-                    <p className="mt-1.5 text-xs text-muted-foreground">{q.tag}</p>
-                  </div>
-                  <Badge variant="outline" className={difficultyTone[q.difficulty]}>
-                    {q.difficulty}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
+            {questionsError ? (
+              <p className="mb-3 text-sm text-destructive">{questionsError}</p>
+            ) : null}
+
+            {isGeneratingQuestions ? (
+              <p className="text-sm text-muted-foreground">Generating interview questions with AI…</p>
+            ) : analysis?.interview_questions && analysis.interview_questions.length > 0 ? (
+              <ul className="space-y-3">
+                {analysis.interview_questions.map((q, i) => (
+                  <li
+                    key={i}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 rounded-lg border border-border bg-surface/60 p-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm leading-relaxed">{q.question}</p>
+                      <p className="mt-1.5 text-xs text-muted-foreground">{q.tag}</p>
+                    </div>
+                    <Badge variant="outline" className={difficultyTone[q.difficulty] ?? ""}>
+                      {q.difficulty}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No interview questions yet. Click "Interview Questions" above to generate some.
+              </p>
+            )}
           </TabsContent>
 
           <TabsContent value="suggestions" className="mt-5">

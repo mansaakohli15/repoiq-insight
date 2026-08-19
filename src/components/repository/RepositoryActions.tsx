@@ -7,6 +7,8 @@ export function RepositoryActions({
   isAnalyzing,
   onGenerateReadme,
   isGeneratingReadme,
+  onGenerateInterviewQuestions,
+  isGeneratingInterviewQuestions,
 }: {
   onGenerateHealthScore: () => void;
   isGenerating: boolean;
@@ -14,6 +16,8 @@ export function RepositoryActions({
   isAnalyzing: boolean;
   onGenerateReadme: () => void;
   isGeneratingReadme: boolean;
+  onGenerateInterviewQuestions: () => void;
+  isGeneratingInterviewQuestions: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -27,16 +31,13 @@ export function RepositoryActions({
         <Button variant="outline" onClick={onGenerateReadme} disabled={isGeneratingReadme}>
           {isGeneratingReadme ? "Generating..." : "Generate README"}
         </Button>
-        {["Interview Questions", "Chat with Repository"].map((label) => (
-          <Button
-            key={label}
-            variant="outline"
-            disabled
-            className="cursor-not-allowed opacity-70"
-          >
-            {label} · Coming soon
-          </Button>
-        ))}
+        <Button
+          variant="outline"
+          onClick={onGenerateInterviewQuestions}
+          disabled={isGeneratingInterviewQuestions}
+        >
+          {isGeneratingInterviewQuestions ? "Generating..." : "Interview Questions"}
+        </Button>
       </div>
     </div>
   );
