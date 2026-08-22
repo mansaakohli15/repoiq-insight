@@ -8,6 +8,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.analysis import Analysis
+    from app.models.chat_message import ChatMessage
     from app.models.user import User
 
 
@@ -32,5 +33,8 @@ class Repository(Base):
 
     user: Mapped["User"] = relationship(back_populates="repositories")
     analyses: Mapped[list["Analysis"]] = relationship(
+        back_populates="repository", cascade="all, delete-orphan"
+    )
+    chat_messages: Mapped[list["ChatMessage"]] = relationship(
         back_populates="repository", cascade="all, delete-orphan"
     )
