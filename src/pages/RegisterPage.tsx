@@ -25,8 +25,12 @@ export function RegisterPage() {
     try {
       await register(username, email, password);
       navigate("/dashboard");
-    } catch {
-      setError("Could not create account. Try a different username or email.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not create account. Try a different username or email.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -63,20 +67,20 @@ export function RegisterPage() {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="avakirchner"
+              placeholder="octocat"
               className="bg-surface"
               required
               minLength={3}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Work email</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ava@northwind.dev"
+              placeholder="developer@example.com"
               className="bg-surface"
               required
             />

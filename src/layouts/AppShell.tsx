@@ -31,7 +31,6 @@ import { cn } from "@/utils/cn";
 
 const nav = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Repositories", to: "/repository/atlas-api", icon: FolderGit2 },
   { label: "AI Chat", to: "/chat", icon: MessageSquare },
   { label: "Profile", to: "/profile", icon: User },
   { label: "Settings", to: "/settings", icon: Settings },
@@ -58,9 +57,7 @@ export function AppShell({
     navigate("/login");
   };
 
-  const initials = user?.username
-    ? user.username.slice(0, 2).toUpperCase()
-    : "?";
+  const initials = user?.username ? user.username.slice(0, 2).toUpperCase() : "?";
 
   const sidebar = (
     <div className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
@@ -81,9 +78,9 @@ export function AppShell({
         </p>
         {nav.map((item) => {
           const active =
-            item.to === "/repository/$repoId"
-              ? pathname.startsWith("/repository")
-              : pathname === item.to;
+            item.to === "/dashboard"
+              ? pathname === "/dashboard" || pathname.startsWith("/repository")
+              : pathname === item.to || pathname.startsWith(item.to);
           return (
             <Link
               key={item.label}
@@ -107,14 +104,11 @@ export function AppShell({
       <div className="m-3 rounded-xl border border-sidebar-border bg-surface-2/60 p-4">
         <div className="flex items-center gap-2 text-sm font-medium">
           <BookOpen className="h-4 w-4 text-primary" />
-          Pro trial
+          Developer Plan
         </div>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          9 days left. Unlimited private repository analyses.
+          Free Community Edition · Unlimited public repository analyses.
         </p>
-        <Button size="sm" className="mt-3 w-full">
-          Upgrade
-        </Button>
       </div>
     </div>
   );
@@ -173,9 +167,7 @@ export function AppShell({
                 <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuLabel>
                     <p className="text-sm font-medium">{user?.username ?? "Guest"}</p>
-                    <p className="text-xs font-normal text-muted-foreground">
-                      {user?.email ?? ""}
-                    </p>
+                    <p className="text-xs font-normal text-muted-foreground">{user?.email ?? ""}</p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>

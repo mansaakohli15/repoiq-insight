@@ -35,10 +35,105 @@ import {
   getRepositoryDetails,
   type AnalysisResponse,
 } from "@/services/repositoryApi";
-// NOTE: `suggestions` (Improvement suggestions tab) is still placeholder data —
-// no backend feature builds this yet.
-import { healthBreakdown, suggestions } from "@/utils/mockData";
 import type { HealthScoreCheck, Repo } from "@/types/repository";
+
+function generateSuggestions(
+  repo: Repo,
+  checks: HealthScoreCheck[],
+  analysis: AnalysisResponse | null,
+) {
+  const dynamic: { title: string; impact: "High" | "Medium" | "Low"; detail: string }[] = [];
+
+  checks.forEach((check) => {
+    if (!check.passed) {
+      if (check.name.toLowerCase().includes("readme")) {
+        dynamic.push({
+          title: "Add a comprehensive README.md",
+          impact: "High",
+          detail:
+            "The repository is currently missing a README file. Adding one with setup and usage instructions will significantly improve developer onboarding.",
+        });
+      } else if (check.name.toLowerCase().includes("license")) {
+        dynamic.push({
+          title: "Add an open-source license file (LICENSE)",
+          impact: "Medium",
+          detail:
+            "Declaring a recognized open-source license (e.g. MIT, Apache 2.0) clarifies legal usage and encourages external contributions.",
+        });
+      } else if (
+        check.name.toLowerCase().includes("action") ||
+        check.name.toLowerCase().includes("ci")
+      ) {
+        dynamic.push({
+          title: "Configure automated CI with GitHub Actions",
+          impact: "High",
+          detail:
+            "No active CI workflows detected (.github/workflows). Setting up automated build and test checks ensures code reliability across PRs.",
+        });
+      } else if (check.name.toLowerCase().includes("test")) {
+        dynamic.push({
+          title: "Introduce automated unit & integration test coverage",
+          impact: "High",
+          detail:
+            "No test directories or test runner configs were detected. Adding test coverage prevents regressions and simplifies refactoring.",
+        });
+      } else if (
+        check.name.toLowerCase().includes("topic") ||
+        check.name.toLowerCase().includes("desc")
+      ) {
+        dynamic.push({
+          title: "Enrich repository description and discoverability tags",
+          impact: "Low",
+          detail:
+            "Adding a concise project description and relevant GitHub topics helps engineers quickly find and understand the repo's purpose.",
+        });
+      } else if (
+        check.name.toLowerCase().includes("commit") ||
+        check.name.toLowerCase().includes("activity")
+      ) {
+        dynamic.push({
+          title: "Review active maintenance and dependency updates",
+          impact: "Medium",
+          detail:
+            "No commits detected in the last 30 days. Keeping dependencies up to date and resolving open issues ensures long-term repository vitality.",
+        });
+      }
+    }
+  });
+
+  if (analysis?.limitations) {
+    dynamic.push({
+      title: "Address AI-identified architectural limitations",
+      impact: "Medium",
+      detail: analysis.limitations,
+    });
+  }
+
+  if (dynamic.length === 0) {
+    dynamic.push(
+      {
+        title: "Setup automated security & vulnerability scanning (Dependabot / CodeQL)",
+        impact: "Medium",
+        detail:
+          "Enable automated dependency scanning and static analysis in repository settings to catch vulnerabilities early.",
+      },
+      {
+        title: "Publish release tags and semantic changelogs (CHANGELOG.md)",
+        impact: "Low",
+        detail:
+          "Adopt semantic versioning and document breaking changes or features for downstream consumers.",
+      },
+      {
+        title: "Maintain architecture decision records (ADRs)",
+        impact: "Low",
+        detail:
+          "Document major architectural choices, trade-offs, and design contracts to preserve institutional knowledge.",
+      },
+    );
+  }
+
+  return dynamic;
+}
 
 const impactTone: Record<string, string> = {
   High: "border-destructive/40 text-destructive",
@@ -103,7 +198,9 @@ export function RepositoryPage() {
         setIsMissing(true);
       });
 
-    void getAnalysis(Number(repoId)).then(setAnalysis).catch(() => setAnalysis(null));
+    void getAnalysis(Number(repoId))
+      .then(setAnalysis)
+      .catch(() => setAnalysis(null));
   }, [repoId]);
 
   const handleGenerateHealthScore = async () => {
@@ -189,6 +286,49 @@ export function RepositoryPage() {
     );
   }
 
+  const computedSuggestions = generateSuggestions(repo, healthChecks, analysis);
+  const languagesList =
+    repo.languages.length > 0
+      ? repo.languages
+      : repo.language && repo.language !== "Unknown"
+        ? [{ name: repo.language, percent: 100 }]
+        : [{ name: "Codebase", percent: 100 }];
+
+  const healthBreakdown = [
+    {
+      label: "Documentation",
+      value: healthChecks.find((c) => c.name.toLowerCase().includes("readme"))?.passed
+        ? 100
+        : repo.health >= 70
+          ? 80
+          : 35,
+    },
+    {
+      label: "CI & Workflows",
+      value: healthChecks.find((c) => c.name.toLowerCase().includes("action"))?.passed
+        ? 100
+        : repo.health >= 80
+          ? 85
+          : 30,
+    },
+    {
+      label: "Test coverage",
+      value: healthChecks.find((c) => c.name.toLowerCase().includes("test"))?.passed
+        ? 100
+        : repo.health >= 80
+          ? 75
+          : 25,
+    },
+    {
+      label: "Security & License",
+      value: healthChecks.find((c) => c.name.toLowerCase().includes("license"))?.passed
+        ? 100
+        : repo.health >= 60
+          ? 70
+          : 40,
+    },
+  ];
+
   return (
     <AppShell title={repo.name} subtitle={`${repo.owner}/${repo.name}`}>
       <div className="space-y-4">
@@ -218,19 +358,27 @@ export function RepositoryPage() {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
             <div className="min-w-0">
               <h2 className="font-display text-lg font-semibold">Repository overview</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{repo.description}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {repo.description || "No description provided."}
+              </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {repo.topics?.length ? (
-                  repo.topics.map((t) => (
-                    <Badge key={t} variant="secondary" className="font-normal">
-                      {t}
-                    </Badge>
-                  ))
-                ) : null}
+                {repo.topics?.length
+                  ? repo.topics.map((t) => (
+                      <Badge key={t} variant="secondary" className="font-normal">
+                        {t}
+                      </Badge>
+                    ))
+                  : null}
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleAnalyze} disabled={isAnalyzing}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+              >
                 <RefreshCw className="h-3.5 w-3.5" /> Re-analyze
               </Button>
             </div>
@@ -271,7 +419,7 @@ export function RepositoryPage() {
               <div key={h.label}>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{h.label}</span>
-                  <span className="font-medium">{h.value}</span>
+                  <span className="font-medium">{h.value}%</span>
                 </div>
                 <Progress value={h.value} className="mt-1.5 h-1.5" />
               </div>
@@ -306,7 +454,7 @@ export function RepositoryPage() {
                 ))
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  No health score checks have been generated yet.
+                  Click "Health Score" above to run the deterministic checks.
                 </p>
               )}
             </div>
@@ -320,9 +468,7 @@ export function RepositoryPage() {
           <h2 className="font-display text-lg font-semibold">AI summary</h2>
         </div>
 
-        {analysisError ? (
-          <p className="mt-3 text-sm text-destructive">{analysisError}</p>
-        ) : null}
+        {analysisError ? <p className="mt-3 text-sm text-destructive">{analysisError}</p> : null}
 
         {isAnalyzing ? (
           <p className="mt-4 text-sm text-muted-foreground">Analyzing repository with AI…</p>
@@ -367,7 +513,7 @@ export function RepositoryPage() {
 
         <div className="mt-5">
           <Button asChild variant="outline" size="sm">
-            <Link to="/chat">Ask a follow-up question</Link>
+            <Link to={`/chat?repoId=${repo.id}`}>Ask a follow-up question</Link>
           </Button>
         </div>
       </section>
@@ -376,7 +522,7 @@ export function RepositoryPage() {
         <section className="rounded-xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-semibold">Languages</h2>
           <div className="mt-5 flex h-2.5 w-full overflow-hidden rounded-full">
-            {repo.languages.map((l, i) => (
+            {languagesList.map((l, i) => (
               <span
                 key={l.name}
                 style={{
@@ -387,7 +533,7 @@ export function RepositoryPage() {
             ))}
           </div>
           <ul className="mt-5 space-y-2.5">
-            {repo.languages.map((l, i) => (
+            {languagesList.map((l, i) => (
               <li key={l.name} className="flex items-center gap-2 text-sm">
                 <span
                   className="h-2 w-2 rounded-full"
@@ -406,9 +552,7 @@ export function RepositoryPage() {
             <Badge variant="outline">README.md</Badge>
           </div>
 
-          {readmeError ? (
-            <p className="mt-3 text-sm text-destructive">{readmeError}</p>
-          ) : null}
+          {readmeError ? <p className="mt-3 text-sm text-destructive">{readmeError}</p> : null}
 
           {isGeneratingReadme ? (
             <p className="mt-4 text-sm text-muted-foreground">Generating README with AI…</p>
@@ -450,7 +594,9 @@ export function RepositoryPage() {
             ) : null}
 
             {isGeneratingQuestions ? (
-              <p className="text-sm text-muted-foreground">Generating interview questions with AI…</p>
+              <p className="text-sm text-muted-foreground">
+                Generating interview questions with AI…
+              </p>
             ) : analysis?.interview_questions && analysis.interview_questions.length > 0 ? (
               <ul className="space-y-3">
                 {analysis.interview_questions.map((q, i) => (
@@ -477,7 +623,7 @@ export function RepositoryPage() {
 
           <TabsContent value="suggestions" className="mt-5">
             <Accordion type="single" collapsible className="w-full">
-              {suggestions.map((s) => (
+              {computedSuggestions.map((s) => (
                 <AccordionItem key={s.title} value={s.title}>
                   <AccordionTrigger className="text-left">
                     <span className="flex min-w-0 items-center gap-3">

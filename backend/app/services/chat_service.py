@@ -90,9 +90,10 @@ class ChatService:
         ]
 
         client = self._get_client()
+        settings = get_settings()
         try:
             completion = client.chat.completions.create(
-                model="openai/gpt-oss-120b",
+                model=settings.groq_model,
                 messages=[system_message, *conversation],
                 temperature=0.4,
                 max_tokens=600,

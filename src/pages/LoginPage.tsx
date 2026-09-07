@@ -23,8 +23,12 @@ export function LoginPage() {
     try {
       await login(email, password);
       navigate("/dashboard");
-    } catch {
-      setError("Invalid email or password.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Invalid email or password. Please check your credentials.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -56,13 +60,13 @@ export function LoginPage() {
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="email">Work email</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ava@northwind.dev"
+              placeholder="developer@example.com"
               className="bg-surface"
               required
             />

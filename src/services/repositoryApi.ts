@@ -51,6 +51,14 @@ export type AnalysisResponse = {
   created_at: string;
 };
 
+export type ChatMessageResponse = {
+  id: number;
+  repository_id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
 export async function listRepositories(): Promise<RepositoryImportResponse[]> {
   const response = await api.get<RepositoryImportResponse[]>("/repositories");
   return response.data;
@@ -63,7 +71,9 @@ export async function importRepository(githubUrl: string): Promise<RepositoryImp
   return response.data;
 }
 
-export async function getRepositoryDetails(repositoryId: number): Promise<RepositoryImportResponse> {
+export async function getRepositoryDetails(
+  repositoryId: number,
+): Promise<RepositoryImportResponse> {
   const response = await api.get<RepositoryImportResponse>(`/repositories/${repositoryId}`);
   return response.data;
 }
@@ -96,5 +106,20 @@ export async function generateInterviewQuestions(repositoryId: number): Promise<
     `/repositories/${repositoryId}/interview-questions`,
     {},
   );
+  return response.data;
+}
+
+export async function getChatMessages(repositoryId: number): Promise<ChatMessageResponse[]> {
+  const response = await api.get<ChatMessageResponse[]>(`/repositories/${repositoryId}/chat`);
+  return response.data;
+}
+
+export async function sendChatMessage(
+  repositoryId: number,
+  content: string,
+): Promise<ChatMessageResponse> {
+  const response = await api.post<ChatMessageResponse>(`/repositories/${repositoryId}/chat`, {
+    content,
+  });
   return response.data;
 }

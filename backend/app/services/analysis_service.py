@@ -263,9 +263,10 @@ class AnalysisService:
 
     def _call_groq_raw(self, prompt: str) -> str:
         client = self._get_client()
+        settings = get_settings()
         try:
             completion = client.chat.completions.create(
-                model="openai/gpt-oss-120b",
+                model=settings.groq_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=1200,
