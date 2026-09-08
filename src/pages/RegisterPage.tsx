@@ -26,11 +26,14 @@ export function RegisterPage() {
       await register(username, email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Could not create account. Try a different username or email.",
-      );
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch") || msg.toLowerCase().includes("connection")) {
+        setError(
+          "Cannot connect to the backend server. If running locally, please start the backend (uvicorn app.main:app --port 8000). If using live deployment, the free-tier server may be waking up—please wait ~30s and try again.",
+        );
+      } else {
+        setError(msg || "Could not create account. Try a different username or email.");
+      }
     } finally {
       setIsSubmitting(false);
     }

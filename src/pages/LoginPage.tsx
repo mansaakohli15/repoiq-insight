@@ -24,11 +24,14 @@ export function LoginPage() {
       await login(email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Invalid email or password. Please check your credentials.",
-      );
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch") || msg.toLowerCase().includes("connection")) {
+        setError(
+          "Cannot connect to the backend server. If running locally, please start the backend (uvicorn app.main:app --port 8000). If using live deployment, the free-tier server may be waking up—please wait ~30s and try again.",
+        );
+      } else {
+        setError(msg || "Invalid email or password. Please check your credentials.");
+      }
     } finally {
       setIsSubmitting(false);
     }
