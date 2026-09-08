@@ -268,8 +268,10 @@ class AnalysisService:
         candidate_models = [
             settings.groq_model,
             "llama-3.1-8b-instant",
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            "qwen/qwen3-32b",
             "gemma2-9b-it",
-            "mixtral-8x7b-32768",
         ]
         models_to_try = [m for i, m in enumerate(candidate_models) if m and m not in candidate_models[:i]]
 
@@ -285,22 +287,7 @@ class AnalysisService:
                 return (completion.choices[0].message.content or "").strip()
             except Exception as error:
                 last_error = error
-                error_str = str(error).lower()
-                if any(
-                    k in error_str
-                    for k in [
-                        "model_decommissioned",
-                        "decommissioned",
-                        "model_not_found",
-                        "not_found",
-                        "does not exist",
-                        "404",
-                        "400",
-                        "deprecated",
-                    ]
-                ):
-                    continue
-                break
+                continue
 
         error_msg = str(last_error) if last_error else "AI summary service unavailable"
         raise HTTPException(
