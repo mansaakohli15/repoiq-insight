@@ -29,6 +29,9 @@ Exploring a new codebase usually requires hours of manually inspecting directori
 4. **Targeted Interview Questions**: Generates 6 repo-specific interview questions graded by difficulty (Easy, Medium, Hard) and categorized by engineering topics.
 5. **Persistent Repository Chat**: Enables grounded conversational exploration of any imported repository with persistent conversation history stored in the database.
 
+
+<img width="1913" height="1007" alt="image" src="https://github.com/user-attachments/assets/43e1cea2-1d22-4866-aa48-e9e2b673367e" />
+
 ---
 
 ## 🚀 Feature Breakdown
@@ -39,6 +42,9 @@ Exploring a new codebase usually requires hours of manually inspecting directori
 - **Stateless JWT Tokens**: Issues 60-minute signed access tokens (`HS256`).
 - **Frontend Interceptor**: Axios automatically injects the Bearer token into outgoing requests.
 - **Protected Routes**: React Router `PrivateRoute` wrapper guarantees unauthenticated users cannot access workspace routes.
+
+<img width="1917" height="998" alt="image" src="https://github.com/user-attachments/assets/63ca512a-f600-4d78-8094-3844ae6cf9c1" />
+
 
 ### 2. Live GitHub Repository Ingestion
 
@@ -100,6 +106,9 @@ A transparent, non-AI scoring algorithm evaluating real repository signals:
 - Generates actionable recommendations dynamically derived from failing health checks and AI limitations.
 
 ---
+
+<img width="1917" height="1077" alt="image" src="https://github.com/user-attachments/assets/c9f8b5d7-9558-4728-93e8-f7f6af2ae5bc" />
+
 
 ## 🏗 Architecture & Design
 
