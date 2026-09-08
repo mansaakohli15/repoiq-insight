@@ -99,9 +99,10 @@ class ChatService:
                 max_tokens=600,
             )
         except Exception as error:
+            error_msg = str(error)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Unable to reach the AI chat service",
+                detail=f"AI chat service error: {error_msg}" if error_msg else "Unable to reach the AI chat service",
             ) from error
 
         return (completion.choices[0].message.content or "").strip()
@@ -109,10 +110,10 @@ class ChatService:
     def _get_client(self) -> Groq:
         if self._client is None:
             settings = get_settings()
-            if not settings.groq_api_key:
+            if not settings.groq_api_key or not settings.groq_api_key.strip():
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="AI chat service is not configured",
+                    detail="AI chat service is not configured. Please add GROQ_API_KEY to your Render environment variables.",
                 )
-            self._client = Groq(api_key=settings.groq_api_key)
+            self._client = Groq(api_key=settings.groq_api_key.strip())
         return self._client
