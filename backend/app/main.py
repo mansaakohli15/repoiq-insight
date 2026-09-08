@@ -2,7 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, chat, health, repository
+from app.database import Base, engine
+from app.models import analysis, chat_message, repository, user  # noqa: F401
+from app.routers import auth, chat, health, repository as repo_router
+
+# Auto-create tables on startup if they don't exist
+Base.metadata.create_all(bind=engine)
 
 settings = get_settings()
 
@@ -19,5 +24,5 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(auth.router)
-app.include_router(repository.router)
+app.include_router(repo_router.router)
 app.include_router(chat.router)
