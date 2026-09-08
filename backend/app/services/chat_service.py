@@ -91,21 +91,38 @@ class ChatService:
 
         client = self._get_client()
         settings = get_settings()
-        try:
-            completion = client.chat.completions.create(
-                model=settings.groq_model,
-                messages=[system_message, *conversation],
-                temperature=0.4,
-                max_tokens=600,
-            )
-        except Exception as error:
-            error_msg = str(error)
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"AI chat service error: {error_msg}" if error_msg else "Unable to reach the AI chat service",
-            ) from error
 
-        return (completion.choices[0].message.content or "").strip()
+        candidate_models = [
+            settings.groq_model,
+            "llama-3.1-8b-instant",
+            "llama3-70b-8192",
+            "llama3-8b-8192",
+            "mixtral-8x7b-32768",
+        ]
+        models_to_try = [m for i, m in enumerate(candidate_models) if m and m not in candidate_models[:i]]
+
+        last_error = None
+        for model_name in models_to_try:
+            try:
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=[system_message, *conversation],
+                    temperature=0.4,
+                    max_tokens=600,
+                )
+                return (completion.choices[0].message.content or "").strip()
+            except Exception as error:
+                last_error = error
+                error_str = str(error).lower()
+                if "model_not_found" in error_str or "does not exist" in error_str or "404" in error_str:
+                    continue
+                break
+
+        error_msg = str(last_error) if last_error else "AI chat service unavailable"
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI chat service error: {error_msg}",
+        )
 
     def _get_client(self) -> Groq:
         if self._client is None:
