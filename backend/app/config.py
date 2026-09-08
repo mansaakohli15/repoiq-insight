@@ -7,7 +7,10 @@ class Settings(BaseSettings):
     app_name: str = "RepoIQ API"
     environment: str = "development"
     database_url: str = "sqlite:///./repoiq.db"
-    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+    cors_origins: str = (
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,"
+        "https://repoiq-insight.vercel.app"
+    )
     jwt_secret_key: str = "change-this-development-secret"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
