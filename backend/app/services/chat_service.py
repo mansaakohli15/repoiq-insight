@@ -95,8 +95,7 @@ class ChatService:
         candidate_models = [
             settings.groq_model,
             "llama-3.1-8b-instant",
-            "llama3-70b-8192",
-            "llama3-8b-8192",
+            "gemma2-9b-it",
             "mixtral-8x7b-32768",
         ]
         models_to_try = [m for i, m in enumerate(candidate_models) if m and m not in candidate_models[:i]]
@@ -114,7 +113,18 @@ class ChatService:
             except Exception as error:
                 last_error = error
                 error_str = str(error).lower()
-                if "model_not_found" in error_str or "does not exist" in error_str or "404" in error_str:
+                if any(
+                    k in error_str
+                    for k in [
+                        "model_decommissioned",
+                        "decommissioned",
+                        "model_not_found",
+                        "not_found",
+                        "does not exist",
+                        "404",
+                        "deprecated",
+                    ]
+                ):
                     continue
                 break
 
